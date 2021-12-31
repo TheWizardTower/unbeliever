@@ -1,0 +1,34 @@
+name: core-persistence-postgres
+version: 0.0.1.0
+synopsis: Interoperability with a Postgres datatabase
+description: |
+  This is part of a library to help build command-line programs, both tools and
+  longer-running daemons.
+  
+  This package in particular adds wrappers around __postgres-simple__.
+
+stability: experimental
+license: MIT
+license-file: LICENSE
+author: Adam McCullough <merlinfmct87@gmail.com>
+maintainer: Adam McCullough <merlinfmct87@gmail.com>
+copyright: © 2021 Athae Eredh Siniath and Others
+tested-with: GHC == 8.10.7
+category: System
+ghc-options: -Wall -Wwarn -fwarn-tabs
+github: aesiniath/unbeliever
+  
+dependencies:
+ - base >= 4.11 && < 5
+ - bytestring
+ - core-text
+ - core-data
+ - core-program
+ - postgresql-simple
+
+library:
+  dependencies: []
+  source-dirs: lib
+  exposed-modules:
+   - Core.Persistence.Postgres
+  other-modules: []
