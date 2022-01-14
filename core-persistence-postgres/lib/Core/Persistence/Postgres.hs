@@ -12,6 +12,8 @@ module Core.Persistence.Postgres (
     ) where
 
 import Core.Text (Rope, fromRope)
+import Core.Program (Program)
+import Database.PostgreSQL.Simple (Connection)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField)
 import Database.PostgreSQL.Simple.ToField (Action (..), ToField, toField)
 
@@ -20,3 +22,8 @@ instance FromField Rope where
 
 instance ToField Rope where
     toField r = Escape $ fromRope r
+
+class Database d where
+    getConnection :: d -> Program d Connection
+    setConnection :: Connection -> d -> Program d d
+    getConnectionString :: d -> Program d Rope
