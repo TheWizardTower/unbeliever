@@ -10,7 +10,9 @@ synopsis:       Interoperability with a Postgres datatabase
 description:    This is part of a library to help build command-line programs, both tools and
                 longer-running daemons.
                 .
-                This package in particular adds wrappers around __postgres-simple__.
+                This package in particular adds wrappers around __postgresql-simple__ to
+                facilitate reading and writing data to a Postgres database from programs
+                written using __core-program__ and __core-text__.
 category:       System
 stability:      experimental
 homepage:       https://github.com/aesiniath/unbeliever#readme
