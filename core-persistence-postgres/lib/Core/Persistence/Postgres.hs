@@ -78,3 +78,20 @@ connectionDisconnected =
         , sqlErrorHint = ""
         }
 
+retryConnection :: (Database d, ToRow q, FromRow r) => Query -> q -> Program d [r]
+retryConnection q args = do
+    res <- newQuery q args
+    if res == [connectionDisconnected]
+        then do
+            _ <- refreshConnection
+            newQuery q args
+        else return res
+
+retryConnection_ :: (Database d, FromRow r) => Query -> Program d [r]
+retryConnection_ q = do
+    res <- newQuery_ q
+    if res == [Only connectionDisconnected]
+        then do
+            _ <- refreshConnection
+            newQuery_ q
+        else return res
