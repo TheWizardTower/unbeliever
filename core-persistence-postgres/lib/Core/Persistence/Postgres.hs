@@ -18,12 +18,15 @@ module Core.Persistence.Postgres (
     queryP_,
     refreshConnection,
     setConnection,
+    retryConnection,
+    retryConnection_
 ) where
 
 import Control.Monad.IO.Class (liftIO)
 import Core.Program (Program, getApplicationState, setApplicationState)
 import Core.Text (Rope, fromRope)
-import Database.PostgreSQL.Simple (Connection, ExecStatus (..), FromRow, Only (..), Query, SqlError (..), ToRow, connectPostgreSQL, query, query_)
+import Core.System (catch)
+import Database.PostgreSQL.Simple (Connection, FromRow, Query, SqlError (..), ToRow, connectPostgreSQL, query, query_)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField)
 import Database.PostgreSQL.Simple.ToField (Action (..), ToField, toField)
 
@@ -68,30 +71,20 @@ refreshConnection = do
     setApplicationState env'
     return conn
 
-connectionDisconnected :: SqlError
-connectionDisconnected =
-    SqlError
-        { sqlState = ""
-        , sqlExecStatus = FatalError
-        , sqlErrorMsg = "connection disconnected"
-        , sqlErrorDetail = ""
-        , sqlErrorHint = ""
-        }
-
 retryConnection :: (Database d, ToRow q, FromRow r) => Query -> q -> Program d [r]
 retryConnection q args = do
-    res <- newQuery q args
-    if res == [connectionDisconnected]
-        then do
-            _ <- refreshConnection
-            newQuery q args
-        else return res
+    catch (newQuery q args) (helperFunction q args)
+  where
+    helperFunction :: (Database d, ToRow q, FromRow r) => Query -> q -> SqlError -> Program d [r]
+    helperFunction q' args' _ex = do
+        _ <- refreshConnection
+        newQuery q' args'
 
 retryConnection_ :: (Database d, FromRow r) => Query -> Program d [r]
 retryConnection_ q = do
-    res <- newQuery_ q
-    if res == [Only connectionDisconnected]
-        then do
-            _ <- refreshConnection
-            newQuery_ q
-        else return res
+    catch (newQuery_ q) (helperFunction q)
+  where
+    helperFunction :: (Database d, FromRow r) => Query -> SqlError -> Program d [r]
+    helperFunction q' _ex = do
+        _ <- refreshConnection
+        newQuery_ q'
