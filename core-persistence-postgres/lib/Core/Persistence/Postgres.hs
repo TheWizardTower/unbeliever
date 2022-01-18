@@ -19,14 +19,14 @@ module Core.Persistence.Postgres (
     refreshConnection,
     setConnection,
     retryConnection,
-    retryConnection_
+    retryConnection_,
 ) where
 
 import Control.Monad.IO.Class (liftIO)
 import Core.Program (Program, getApplicationState, setApplicationState)
+import Core.System (catch, throw)
 import Core.Text (Rope, fromRope)
-import Core.System (catch)
-import Database.PostgreSQL.Simple (Connection, FromRow, Query, SqlError (..), ToRow, connectPostgreSQL, query, query_)
+import Database.PostgreSQL.Simple (Connection, ExecStatus (..), FromRow, Query, SqlError (..), ToRow, connectPostgreSQL, query, query_)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField)
 import Database.PostgreSQL.Simple.ToField (Action (..), ToField, toField)
 
@@ -71,20 +71,39 @@ refreshConnection = do
     setApplicationState env'
     return conn
 
+connectionDisconnected :: SqlError
+connectionDisconnected =
+    SqlError
+        { sqlState = ""
+        , sqlExecStatus = FatalError
+        , sqlErrorMsg = "connection disconnected"
+        , sqlErrorDetail = ""
+        , sqlErrorHint = ""
+        }
+
+-- These should be in the newQuery* series, but I haven't found a name I like
+-- yet. Essentially, they're newQuery[_], but with a single round of connection
+-- retry logic added in.
 retryConnection :: (Database d, ToRow q, FromRow r) => Query -> q -> Program d [r]
 retryConnection q args = do
     catch (newQuery q args) (helperFunction q args)
   where
     helperFunction :: (Database d, ToRow q, FromRow r) => Query -> q -> SqlError -> Program d [r]
-    helperFunction q' args' _ex = do
-        _ <- refreshConnection
-        newQuery q' args'
+    helperFunction q' args' ex = do
+        if ex == connectionDisconnected
+            then do
+                _ <- refreshConnection
+                newQuery q' args'
+            else throw ex
 
 retryConnection_ :: (Database d, FromRow r) => Query -> Program d [r]
 retryConnection_ q = do
     catch (newQuery_ q) (helperFunction q)
   where
     helperFunction :: (Database d, FromRow r) => Query -> SqlError -> Program d [r]
-    helperFunction q' _ex = do
-        _ <- refreshConnection
-        newQuery_ q'
+    helperFunction q' ex = do
+        if ex == connectionDisconnected
+            then do
+                _ <- refreshConnection
+                newQuery_ q'
+            else throw ex
