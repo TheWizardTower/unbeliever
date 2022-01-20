@@ -199,27 +199,27 @@ class Dictionary α where
     fromMap :: Map (K α) (V α) -> α
     intoMap :: α -> Map (K α) (V α)
 
-instance Key κ => Dictionary (Map κ ν) where
+instance Dictionary (Map κ ν) where
     type K (Map κ ν) = κ
     type V (Map κ ν) = ν
     fromMap = id
     intoMap = id
 
 -- | from "Data.HashMap.Strict" (and .Lazy)
-instance Key κ => Dictionary (HashMap.HashMap κ ν) where
+instance Dictionary (HashMap.HashMap κ ν) where
     type K (HashMap.HashMap κ ν) = κ
     type V (HashMap.HashMap κ ν) = ν
     fromMap (Map u) = u
     intoMap u = Map u
 
 -- | from "Data.Map.Strict" (and .Lazy)
-instance Key κ => Dictionary (OrdMap.Map κ ν) where
+instance (Eq κ, Hashable κ, Ord κ) => Dictionary (OrdMap.Map κ ν) where
     type K (OrdMap.Map κ ν) = κ
     type V (OrdMap.Map κ ν) = ν
     fromMap (Map u) = HashMap.foldrWithKey OrdMap.insert OrdMap.empty u
     intoMap o = Map (OrdMap.foldrWithKey HashMap.insert HashMap.empty o)
 
-instance Key κ => Dictionary [(κ, ν)] where
+instance (Eq κ, Hashable κ, Ord κ) => Dictionary [(κ, ν)] where
     type K [(κ, ν)] = κ
     type V [(κ, ν)] = ν
     fromMap (Map u) = OrdMap.toList (HashMap.foldrWithKey OrdMap.insert OrdMap.empty u)
@@ -266,8 +266,8 @@ instance Key ε => Monoid (Set ε) where
 An empty collection. This is used for example as an inital value when
 building up a 'Set' using a fold.
 -}
-emptySet :: Key ε => Set ε
-emptySet = Set (HashSet.empty)
+emptySet :: Set ε
+emptySet = Set HashSet.empty
 
 {- |
 Construct a collection comprising only the supplied element.
@@ -307,24 +307,24 @@ class Collection α where
     fromSet :: Set (E α) -> α
     intoSet :: α -> Set (E α)
 
-instance Key ε => Collection (Set ε) where
+instance Collection (Set ε) where
     type E (Set ε) = ε
     fromSet = id
     intoSet = id
 
 -- | from "Data.HashSet"
-instance Key ε => Collection (HashSet.HashSet ε) where
+instance Collection (HashSet.HashSet ε) where
     type E (HashSet.HashSet ε) = ε
     fromSet (Set u) = u
     intoSet u = Set u
 
 -- | from "Data.Set"
-instance Key ε => Collection (OrdSet.Set ε) where
+instance (Eq ε, Hashable ε, Ord ε) => Collection (OrdSet.Set ε) where
     type E (OrdSet.Set ε) = ε
     fromSet (Set u) = HashSet.foldr OrdSet.insert OrdSet.empty u
     intoSet u = Set (OrdSet.foldr HashSet.insert HashSet.empty u)
 
-instance Key ε => Collection [ε] where
+instance (Hashable ε, Ord ε) => Collection [ε] where
     type E [ε] = ε
     fromSet (Set u) = OrdSet.toList (HashSet.foldr OrdSet.insert OrdSet.empty u)
     intoSet es = Set (HashSet.fromList es)
