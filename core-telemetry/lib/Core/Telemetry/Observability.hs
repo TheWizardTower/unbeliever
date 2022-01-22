@@ -155,12 +155,13 @@ module Core.Telemetry.Observability (
 
     -- * Events
     sendEvent,
+    clearMetrics,
 ) where
 
 import Control.Concurrent.MVar (modifyMVar_, newMVar, readMVar)
 import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TQueue (writeTQueue)
-import Core.Data.Structures (Map, insertKeyValue)
+import Core.Data.Structures (Map, emptyMap, insertKeyValue)
 import Core.Encoding.Json
 import Core.Program.Arguments
 import Core.Program.Context
@@ -180,6 +181,7 @@ import qualified Data.Text as T (Text)
 import qualified Data.Text.Lazy as U (Text)
 import Data.UUID (UUID, toWords)
 import Data.UUID.V1 (nextUUID)
+import Data.Word (Word32, Word64)
 
 {- |
 A telemetry value that can be sent over the wire. This is a wrapper around
@@ -234,6 +236,12 @@ instance Telemetry Int32 where
     metric k v = MetricValue (JsonKey k) (JsonNumber (fromIntegral v))
 
 instance Telemetry Int64 where
+    metric k v = MetricValue (JsonKey k) (JsonNumber (fromIntegral v))
+
+instance Telemetry Word32 where
+    metric k v = MetricValue (JsonKey k) (JsonNumber (fromIntegral v))
+
+instance Telemetry Word64 where
     metric k v = MetricValue (JsonKey k) (JsonNumber (fromIntegral v))
 
 instance Telemetry Integer where
@@ -668,3 +676,23 @@ setStartTime time = do
         modifyMVar_
             v
             (\datum -> pure datum{spanTimeFrom = time})
+
+{- |
+Reset the accumulated metadata metrics to the emtpy set.
+
+This isn't something you'd need in normal circumstances, as inheriting
+contextual metrics from surrounding code is usually what you want. But if you
+have a significant change of setting then clearing the attached metadata may
+be appropriate; after all, observability tools visualizing a trace will show
+you the context an event was encountered in.
+-}
+clearMetrics :: Program τ ()
+clearMetrics = do
+    context <- getContext
+
+    liftIO $ do
+        -- get the map out
+        let v = currentDatumFrom context
+        modifyMVar_
+            v
+            (\datum -> pure datum{attachedMetadataFrom = emptyMap})
